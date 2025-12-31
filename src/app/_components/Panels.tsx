@@ -250,7 +250,9 @@ export function MapPanel({ state, onMapClick, onCommandSubmit }: {
     if (creatureAtPos) {
       const creatureId = creatureAtPos[0];
       const creature = creatures[creatureId];
-      if (creature.hp > 0) {
+      const creaturePos = creaturePositions[creatureId];
+      
+      if (creature.hp > 0 && creaturePos) {
         actions.push({
           label: `⚔️ Focus on ${creature.name}`,
           command: `focus on ${creature.name}`,
@@ -263,11 +265,41 @@ export function MapPanel({ state, onMapClick, onCommandSubmit }: {
           actionType: 'focus',
           targetId: creatureId,
         });
-        actions.push({
-          label: `🤫 Sneak up to ${creature.name}`,
-          command: `sneak up to ${creature.name}`,
-          actionType: 'interact',
+        
+        // Calculate position 1 square away from creature
+        // Choose the closest adjacent position to player's current position
+        const adjacentPositions = [
+          { x: creaturePos.x - 1, y: creaturePos.y },     // left
+          { x: creaturePos.x + 1, y: creaturePos.y },     // right
+          { x: creaturePos.x, y: creaturePos.y - 1 },     // up
+          { x: creaturePos.x, y: creaturePos.y + 1 },     // down
+        ].filter(pos => {
+          // Filter out positions that are off-map or walls
+          if (pos.x < 0 || pos.x >= map.width || pos.y < 0 || pos.y >= map.height) return false;
+          const tile = map.tiles[pos.y * map.width + pos.x];
+          return tile === 'floor' || tile === 'grass' || tile === 'road' || tile === 'door';
         });
+        
+        // Find closest valid position to player
+        let sneakTarget = adjacentPositions[0];
+        if (adjacentPositions.length > 1) {
+          let minDist = Math.abs(playerPos.x - adjacentPositions[0].x) + Math.abs(playerPos.y - adjacentPositions[0].y);
+          for (const pos of adjacentPositions.slice(1)) {
+            const dist = Math.abs(playerPos.x - pos.x) + Math.abs(playerPos.y - pos.y);
+            if (dist < minDist) {
+              minDist = dist;
+              sneakTarget = pos;
+            }
+          }
+        }
+        
+        if (sneakTarget) {
+          actions.push({
+            label: `🤫 Sneak up to ${creature.name}`,
+            command: `sneak to ${sneakTarget.x},${sneakTarget.y}`,
+            actionType: 'interact',
+          });
+        }
       }
     }
     
@@ -380,12 +412,22 @@ export function MapPanel({ state, onMapClick, onCommandSubmit }: {
   // Handle attack text submission
   const handleAttackSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!attackText.trim() || !attackInput || !onMapClick) return;
+    e.stopPropagation();
     
-    console.log('[MapPanel] Attack submission:', attackText, 'target:', attackInput.targetName);
+    console.log('[MapPanel] handleAttackSubmit called');
+    console.log('[MapPanel] attackText:', attackText);
+    console.log('[MapPanel] attackInput:', attackInput);
+    console.log('[MapPanel] onMapClick exists:', !!onMapClick);
     
-    // Send attack command the same way as other context menu actions
-    onMapClick(0, 0, attackText, 'interact', attackInput.targetId);
+    if (!attackText.trim() || !attackInput || !onMapClick) {
+      console.log('[MapPanel] Early return - missing data');
+      return;
+    }
+    
+    console.log('[MapPanel] Attack submission:', attackText, 'target:', attackInput.targetName, 'targetId:', attackInput.targetId);
+    
+    // Send attack command with 'focus' actionType to ensure enemy is targeted
+    onMapClick(0, 0, attackText, 'attack', attackInput.targetId);
     
     setAttackInput(null);
     setAttackText("");

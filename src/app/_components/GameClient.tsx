@@ -222,6 +222,26 @@ export function GameClient() {
                   return;
                 }
                 
+                // Handle attack action - focus on enemy and dispatch command
+                if (actionType === 'attack' && targetId) {
+                  const creature = state.creatures[targetId];
+                  if (creature && stateRef.current) {
+                    const updatedState = { ...stateRef.current, focusedEnemyId: targetId };
+                    setState(updatedState);
+                    stateRef.current = updatedState;
+                    console.log('[GameClient] Focused on target for attack:', creature.name);
+                    
+                    // Dispatch the attack command
+                    if (!busy && ready) {
+                      console.log('[GameClient] Dispatching attack command:', command);
+                      document.dispatchEvent(new CustomEvent('map-click-action', { 
+                        detail: { x, y, command, actionType: 'attack', targetId } 
+                      }));
+                    }
+                  }
+                  return;
+                }
+                
                 if (!busy && ready) {
                   console.log('[GameClient] Dispatching map-click-action event');
                   document.dispatchEvent(new CustomEvent('map-click-action', { 
