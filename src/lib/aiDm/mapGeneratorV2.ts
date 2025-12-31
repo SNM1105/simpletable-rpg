@@ -198,6 +198,14 @@ export async function generateCampaignMap(
   height: number = 20
 ): Promise<GridMap> {
   try {
+    const apiKey = process.env.GROQ_API_KEY;
+    console.log(`[MapGen] GROQ_API_KEY present: ${!!apiKey}`);
+    
+    if (!apiKey) {
+      console.error("[MapGen] GROQ_API_KEY not configured, using fallback");
+      return createFallbackDungeon();
+    }
+    
     // Generate spec from AI
     const spec = await generateMapSpec(campaignPrompt);
     
