@@ -123,7 +123,7 @@ export function PanelShell({ title, children }: { title: string; children: React
 type ContextMenuAction = {
   label: string;
   command: string;
-  actionType: 'move' | 'interact' | 'focus';
+  actionType: 'move' | 'interact' | 'focus' | 'attack';
   targetId?: string;
 };
 
