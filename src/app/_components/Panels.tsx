@@ -238,14 +238,31 @@ export function MapPanel({ state, onMapClick, onCommandSubmit }: {
     const isPlayerTile = x === playerPos.x && y === playerPos.y;
     console.log('[MapPanel] Distance from player:', distance, 'isPlayerTile:', isPlayerTile, 'playerPos:', playerPos);
     
-    if (isPlayerTile) {
-      // Clicked on self, just show info (don't return, let it fall through)
-      console.log('[MapPanel] Clicked on player tile (ignoring - click elsewhere to move)');
-      return;
-    }
-    
     // Build context menu actions
     const actions: ContextMenuAction[] = [];
+    
+    // Allow attacking self
+    if (isPlayerTile) {
+      const pc = state.creatures[state.playerId];
+      actions.push({
+        label: `🗡️ Attack ${pc.name} (self)`,
+        command: `attack ${pc.name}`,
+        actionType: 'attack',
+        targetId: state.playerId,
+      });
+      
+      // Show context menu for self-attack
+      if (actions.length > 0) {
+        setContextMenu({
+          x: e.clientX,
+          y: e.clientY,
+          tileX: x,
+          tileY: y,
+          actions,
+        });
+      }
+      return;
+    }
     
     console.log('[MapPanel] Checking for creature...');
     // If creature, add creature actions

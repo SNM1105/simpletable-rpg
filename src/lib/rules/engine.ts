@@ -589,26 +589,28 @@ export function resolveCommand(state: GameState, rng: Rng, command: PlayerComman
 
     // Find target - use focused enemy if set, otherwise nearest living enemy
     const pc = nextState.creatures[nextState.playerId];
-    const enemies = Object.values(nextState.creatures).filter(
-      c => c.id !== nextState.playerId && c.hp > 0
-    );
     
-    if (enemies.length === 0) {
-      events.push({ type: "Bumped", reason: "No enemies to attack." });
-      return { nextState, events };
-    }
+    let target = pc; // Default to self if no other targets
     
-    let target = enemies[0];
-    
-    // If we have a focused enemy, use that instead
+    // If we have a focused enemy, use that (including self)
     if (nextState.focusedEnemyId) {
-      const focusedEnemy = nextState.creatures[nextState.focusedEnemyId];
-      if (focusedEnemy && focusedEnemy.hp > 0) {
-        target = focusedEnemy;
+      const focusedTarget = nextState.creatures[nextState.focusedEnemyId];
+      if (focusedTarget && focusedTarget.hp > 0) {
+        target = focusedTarget;
       } else {
         // Clear focused enemy if it's dead
         nextState = { ...nextState, focusedEnemyId: undefined };
       }
+    } else {
+      // No focused target - find nearest living enemy (excluding self)
+      const enemies = Object.values(nextState.creatures).filter(
+        c => c.id !== nextState.playerId && c.hp > 0
+      );
+      
+      if (enemies.length > 0) {
+        target = enemies[0];
+      }
+      // Otherwise target remains self
     }
 
     // Use rollD20 for advantage/disadvantage support and critical detection
