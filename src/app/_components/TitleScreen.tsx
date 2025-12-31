@@ -55,7 +55,7 @@ export function TitleScreen({ onStart }: { onStart: () => void }) {
 
         {/* Footer hint */}
         <div className="mt-4 sm:mt-8 text-xs text-stone-500">
-          Powered by Ollama AI • Based on 5e SRD
+          Powered by Groq AI • Based on 5e SRD
         </div>
       </div>
     </div>

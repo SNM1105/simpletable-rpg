@@ -1,4 +1,4 @@
-import { ollamaChat } from "./ollamaClient";
+import { groqChatStream } from "./groqClient";
 import type { MapSpec, MapType, RoomSpec, TerrainType } from "./mapSpec";
 import { buildMapFromSpec, createFallbackDungeon } from "./mapBuilder";
 import type { GridMap } from "./mapSpec";
@@ -141,27 +141,37 @@ export async function generateMapSpec(campaignPrompt: string): Promise<MapSpec> 
   console.log(`[MapGen] Generating ${mapType} map for: "${campaignPrompt}"`);
   
   try {
-    const response = await ollamaChat(
-      "http://127.0.0.1:11434",
-      {
-        model: "qwen2.5:7b",
-        messages: [
-          { role: "system", content: getSystemPrompt() },
-          { role: "user", content: getUserPrompt(campaignPrompt, mapType) },
-        ],
-        stream: false,
-        options: {
-          temperature: 0.7,
-          top_p: 0.9,
-          num_predict: 2000,
-        },
-      },
-      120000 // 2 minute timeout
-    );
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      throw new Error("GROQ_API_KEY not configured");
+    }
+
+    const stream = await groqChatStream(apiKey, {
+      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+      messages: [
+        { role: "system", content: getSystemPrompt() },
+        { role: "user", content: getUserPrompt(campaignPrompt, mapType) },
+      ],
+      temperature: 0.7,
+      max_tokens: 2000,
+      stream: true,
+    });
     
-    console.log("[MapGen] Raw AI response:", response.message.content);
+    // Collect streamed response
+    const reader = stream.getReader();
+    let fullContent = "";
     
-    const jsonText = extractJSON(response.message.content);
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value.message?.content) {
+        fullContent += value.message.content;
+      }
+    }
+    
+    console.log("[MapGen] Raw AI response:", fullContent);
+    
+    const jsonText = extractJSON(fullContent);
     console.log("[MapGen] Extracted JSON:", jsonText);
     
     const spec = JSON.parse(jsonText) as MapSpec;

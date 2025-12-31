@@ -1,4 +1,4 @@
-import { ollamaChatStream } from "@/lib/aiDm/ollamaClient";
+import { groqChatStream } from "@/lib/aiDm/groqClient";
 import {
   dmSystemPrompt,
   dmUserPrompt,
@@ -19,24 +19,29 @@ export async function POST(req: Request) {
     });
   }
 
-  const model = process.env.OLLAMA_MODEL || "qwen2.5:7b";
-  const baseUrl = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    return new Response(JSON.stringify({ error: "GROQ_API_KEY not configured" }), { 
+      status: 500,
+      headers: { "content-type": "application/json" }
+    });
+  }
+
+  const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 
   try {
-    const stream = await ollamaChatStream(
-      baseUrl,
+    const stream = await groqChatStream(
+      apiKey,
       {
         model,
         messages: [
           { role: "system", content: dmSystemPrompt() },
           { role: "user", content: dmUserPrompt(payload) },
         ],
-        options: {
-          temperature: 0.8,
-          top_p: 0.9,
-        },
-      },
-      60_000
+        temperature: 0.8,
+        max_tokens: 1024,
+        stream: true,
+      }
     );
 
     // Create a transform stream to send chunks to the client
@@ -86,7 +91,7 @@ export async function POST(req: Request) {
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return new Response(JSON.stringify({ error: "Ollama call failed", detail: msg }), { 
+    return new Response(JSON.stringify({ error: "Groq API call failed", detail: msg }), { 
       status: 502,
       headers: { "content-type": "application/json" }
     });
