@@ -129,7 +129,7 @@ type ContextMenuAction = {
 
 export function MapPanel({ state, onMapClick, onCommandSubmit }: { 
   state: GameState; 
-  onMapClick?: (x: number, y: number, command: string, actionType: 'move' | 'interact' | 'focus', targetId?: string) => void;
+  onMapClick?: (x: number, y: number, command: string, actionType: 'move' | 'interact' | 'focus' | 'attack', targetId?: string) => void;
   onCommandSubmit?: (text: string) => void;
 }) {
   const { map, playerPos, creatures, creaturePositions } = state;
