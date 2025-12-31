@@ -1,4 +1,4 @@
-import type { Rng } from "@/lib/rules/random/rng";
+import type { Rng } from "@/lib/random/rng";
 import type { GameState } from "@/lib/game/state";
 import { expandMapInDirection } from "@/lib/game/state";
 import type { EngineEvent } from "@/lib/game/events";

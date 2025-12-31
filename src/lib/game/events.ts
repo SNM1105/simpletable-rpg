@@ -24,6 +24,7 @@ export type EngineEvent =
   | { type: "MapModified"; action: string; x: number; y: number; oldTile: string; newTile: string }
   | { type: "MapExpanded"; direction: string; newRooms: number }
   | { type: "MapEdgeReached"; direction: "north" | "south" | "east" | "west"; playerPos: { x: number; y: number } }
-  | { type: "DoorNeedsExpansion"; doorPos: { x: number; y: number }; direction: "north" | "south" | "east" | "west" };
+  | { type: "DoorNeedsExpansion"; doorPos: { x: number; y: number }; direction: "north" | "south" | "east" | "west" }
+  | { type: "Narrate"; text: string };
 
 

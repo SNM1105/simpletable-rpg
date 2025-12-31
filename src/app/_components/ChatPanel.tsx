@@ -7,6 +7,46 @@ export function ChatPanel({ state, streamingText, isLoading, userInput }: { stat
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [animatedText, setAnimatedText] = React.useState("");
   const animationRef = React.useRef<NodeJS.Timeout | null>(null);
+  const [isSpeaking, setIsSpeaking] = React.useState(false);
+  const [narrationEnabled, setNarrationEnabled] = React.useState(false);
+  const lastNarratedTextRef = React.useRef<string>("");
+
+  // Text-to-speech for DM responses
+  React.useEffect(() => {
+    if (!narrationEnabled || !streamingText || streamingText === lastNarratedTextRef.current) {
+      return;
+    }
+
+    // Only narrate when streaming is complete (text hasn't changed for a bit)
+    const timer = setTimeout(() => {
+      if (streamingText && streamingText !== lastNarratedTextRef.current) {
+        // Cancel any existing speech
+        window.speechSynthesis.cancel();
+        
+        const utterance = new SpeechSynthesisUtterance(streamingText);
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+        
+        utterance.onstart = () => setIsSpeaking(true);
+        utterance.onend = () => setIsSpeaking(false);
+        utterance.onerror = () => setIsSpeaking(false);
+        
+        window.speechSynthesis.speak(utterance);
+        lastNarratedTextRef.current = streamingText;
+      }
+    }, 500); // Wait 500ms after text stops changing
+
+    return () => clearTimeout(timer);
+  }, [streamingText, narrationEnabled]);
+
+  // Stop speech when component unmounts or narration disabled
+  React.useEffect(() => {
+    if (!narrationEnabled && isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+  }, [narrationEnabled, isSpeaking]);
 
   // Animate letter-by-letter when streaming text arrives
   React.useEffect(() => {
@@ -53,7 +93,31 @@ export function ChatPanel({ state, streamingText, isLoading, userInput }: { stat
   }, [state.log.length, animatedText, userInput, isLoading]);
 
   return (
-    <div ref={containerRef} className="h-full space-y-2 overflow-y-auto">
+    <div className="flex h-full flex-col">
+      {/* Narration Toggle */}
+      <div className="shrink-0 mb-2 flex items-center justify-between border-b border-foreground/10 pb-2">
+        <div className="text-xs text-foreground/70">Narrative</div>
+        <button
+          onClick={() => {
+            setNarrationEnabled(!narrationEnabled);
+            if (narrationEnabled) {
+              window.speechSynthesis.cancel();
+              setIsSpeaking(false);
+            }
+          }}
+          className={`flex items-center gap-1.5 rounded px-2 py-1 text-xs transition-colors ${
+            narrationEnabled 
+              ? 'bg-blue-600 text-white' 
+              : 'bg-foreground/10 text-foreground/70 hover:bg-foreground/20'
+          }`}
+        >
+          <span>{narrationEnabled ? '🔊' : '🔇'}</span>
+          <span>{narrationEnabled ? 'Narrator On' : 'Narrator Off'}</span>
+          {isSpeaking && <span className="animate-pulse">●</span>}
+        </button>
+      </div>
+      
+      <div ref={containerRef} className="flex-1 space-y-2 overflow-y-auto">
       {state.log.map((m) => {
         // Special styling for loot boxes
         if (m.kind === "loot") {
@@ -119,6 +183,7 @@ export function ChatPanel({ state, streamingText, isLoading, userInput }: { stat
           <div className="mt-1 whitespace-pre-wrap text-sm leading-6">{animatedText}</div>
         </div>
       )}
+    </div>
     </div>
   );
 }

@@ -229,3 +229,6 @@ export async function generateCampaignMap(
     return createFallbackDungeon();
   }
 }
+
+// Re-export for use in API routes
+export { createFallbackDungeon };

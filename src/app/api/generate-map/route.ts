@@ -24,9 +24,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ gridMap });
   } catch (error) {
     console.error('[API] Map generation failed:', error);
-    return NextResponse.json(
-      { error: 'Failed to generate map' },
-      { status: 500 }
-    );
+    
+    // Return fallback map instead of error
+    const { createFallbackDungeon } = await import('@/lib/aiDm/mapGeneratorV2');
+    const fallbackMap = createFallbackDungeon(width || 25, height || 20);
+    
+    return NextResponse.json({ gridMap: fallbackMap });
   }
 }

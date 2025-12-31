@@ -4,7 +4,7 @@ import { calculateSpellSlots } from "@/lib/rules/dnd5e/spellSlots";
 // import { generateCampaignMap } from "@/lib/aiDm/mapGeneratorV2";
 import type { GridMap } from "@/lib/aiDm/mapSpec";
 import { createEncounter } from "@/lib/rules/dnd5e/creatureLibrary";
-import { createMulberry32 } from "@/lib/rules/random/rng";
+import { createMulberry32 } from "@/lib/random/rng";
 
 export type MapTile = "wall" | "floor" | "door" | "chest" | "trap" | "stairs" | "water" | "pillar" | "tree" | "grass" | "road" | "building" | "rock";
 

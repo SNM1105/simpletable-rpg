@@ -1,5 +1,5 @@
 import type { Creature, CreatureType } from "./types";
-import type { Rng } from "@/lib/rules/random/rng";
+import type { Rng } from "@/lib/random/rng";
 
 /**
  * Library of D&D creatures with proper stats

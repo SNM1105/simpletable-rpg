@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { createMulberry32, createTimeSeed } from "@/lib/rules/random/rng";
+import { createMulberry32, createTimeSeed } from "@/lib/random/rng";
 import { createInitialGameState, type GameState } from "@/lib/game/state";
 import { stepPlayerInputWithDm } from "@/lib/game/loopWithDm";
 import { ChatPanel } from "@/app/_components/ChatPanel";

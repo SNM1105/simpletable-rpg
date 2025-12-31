@@ -1,4 +1,4 @@
-import type { Rng } from "@/lib/rules/random/rng";
+import type { Rng } from "@/lib/random/rng";
 
 export type RollType = "normal" | "advantage" | "disadvantage";
 

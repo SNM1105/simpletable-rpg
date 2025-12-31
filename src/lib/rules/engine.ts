@@ -1,4 +1,4 @@
-import type { Rng } from "@/lib/rules/random/rng";
+import type { Rng } from "@/lib/random/rng";
 import { rollDie, rollDice, rollD20, type RollType } from "@/lib/rules/dice";
 import { abilityMod, skillCheckBonus } from "@/lib/rules/dnd5e/srd";
 import type { Ability, Skill } from "@/lib/rules/dnd5e/types";
@@ -14,7 +14,7 @@ import {
 export type PlayerCommand =
   | { kind: "look" }
   | { kind: "move"; dir: "n" | "s" | "e" | "w" }
-  | { kind: "moveTo"; x: number; y: number }
+  | { kind: "moveTo"; x: number; y: number; sneaking?: boolean }
   | { kind: "attack"; target: "nearest" }
   | { kind: "focus"; targetName: string }
   | { kind: "check"; ability: Ability }
@@ -179,16 +179,19 @@ export function parsePlayerCommand(input: string): PlayerCommand {
   const raw = input.trim().toLowerCase();
   if (!raw) return { kind: "look" };
 
+  // Check if this is a sneaking command
+  const isSneaking = /\b(sneak|stealth|hide)\b/.test(raw);
+
   // Parse coordinate references with priority to "to" over "from" for phrases like "moved from X to Y"
-  // Match patterns: "at 13,9", "to square 5,10", "position (7,8)", "move to 15,6", etc.
+  // Match patterns: "at 13,9", "to square 5,10", "position (7,8)", "move to 15,6", "sneak to 15,6", etc.
   // For "from X to Y" patterns, we want the Y coordinates (after "to")
-  const coordMatch = raw.match(/(?:^|\s)(?:to|at|position|square|tile|coordinates?|coord|move\s+to)\s*[:\(]?\s*(\d+)\s*[,\s]\s*(\d+)\s*\)?/);
+  const coordMatch = raw.match(/(?:^|\s)(?:to|at|position|square|tile|coordinates?|coord|move\s+to|sneak\s+to)\s*[:\(]?\s*(\d+)\s*[,\s]\s*(\d+)\s*\)?/);
   if (coordMatch) {
     const x = parseInt(coordMatch[1]);
     const y = parseInt(coordMatch[2]);
     if (!isNaN(x) && !isNaN(y) && x >= 0 && x < 25 && y >= 0 && y < 20) {
-      console.log(`[parsePlayerCommand] Detected moveTo: (${x}, ${y}) from input: "${input}"`);
-      return { kind: "moveTo", x, y };
+      console.log(`[parsePlayerCommand] Detected moveTo: (${x}, ${y})${isSneaking ? ' (sneaking)' : ''} from input: "${input}"`);
+      return { kind: "moveTo", x, y, sneaking: isSneaking };
     }
   }
 
@@ -388,8 +391,8 @@ export function resolveCommand(state: GameState, rng: Rng, command: PlayerComman
       return { nextState, events };
     }
 
-    const { x, y } = command;
-    console.log(`[resolveCommand] moveTo command: (${x}, ${y}), current pos: (${state.playerPos.x}, ${state.playerPos.y})`);
+    const { x, y, sneaking } = command;
+    console.log(`[resolveCommand] moveTo command: (${x}, ${y})${sneaking ? ' (sneaking)' : ''}, current pos: (${state.playerPos.x}, ${state.playerPos.y})`);
     
     const tile = tileAt(state.map, x, y);
     console.log(`[resolveCommand] tile at (${x}, ${y}): ${tile}`);
@@ -400,15 +403,83 @@ export function resolveCommand(state: GameState, rng: Rng, command: PlayerComman
       return { nextState, events };
     }
 
+    // If sneaking, perform stealth check before moving
+    if (sneaking) {
+      const pc = state.creatures[state.playerId];
+      const rollType: RollType = "normal";
+      const { result: d20, wasCritical, wasCriticalFail, rolls } = rollD20(rng, rollType);
+      const bonus = skillCheckBonus({
+        abilityScores: pc.abilityScores,
+        skill: "stealth",
+        level: pc.level,
+        proficient: pc.proficientSkills.includes("stealth"),
+      });
+      const total = d20 + bonus;
+      
+      events.push({
+        type: "Dice",
+        entry: {
+          label: "stealth check",
+          rolls: rolls.map(r => ({ sides: 20, result: r })),
+          total,
+          rollType,
+          wasCritical,
+          wasCriticalFail,
+        },
+      });
+
+      // Find nearest living enemy
+      const enemies = Object.values(state.creatures).filter(c => c.id !== state.playerId && c.hp > 0);
+      
+      if (enemies.length > 0) {
+        // Find closest enemy
+        let closestEnemy = enemies[0];
+        let closestDistance = Infinity;
+        
+        for (const enemy of enemies) {
+          const enemyPos = state.creaturePositions[enemy.id];
+          if (enemyPos) {
+            const dist = Math.abs(enemyPos.x - x) + Math.abs(enemyPos.y - y);
+            if (dist < closestDistance) {
+              closestDistance = dist;
+              closestEnemy = enemy;
+            }
+          }
+        }
+        
+        // Calculate enemy's passive perception (10 + WIS modifier + proficiency if proficient)
+        const enemyWisMod = abilityMod(closestEnemy.abilityScores.wis);
+        const enemyProfBonus = proficiencyBonus(closestEnemy.level);
+        const passivePerception = 10 + enemyWisMod + (closestEnemy.proficientSkills?.includes("perception") ? enemyProfBonus : 0);
+        
+        console.log(`[resolveCommand] Stealth check: ${total} vs DC ${passivePerception} (${closestEnemy.name}'s passive perception)`);
+        
+        // If stealth check fails, enemy notices and combat starts
+        if (total < passivePerception) {
+          events.push({ 
+            type: "Narrate", 
+            text: `${closestEnemy.name} notices you! Combat begins!` 
+          });
+          
+          // Start combat if not already active
+          if (!state.combat.active) {
+            const started = startCombat(state, rng);
+            nextState = started.nextState;
+            events.push(...started.events);
+          }
+        }
+      }
+    }
+
     const dx = x - state.playerPos.x;
     const dy = y - state.playerPos.y;
     const newPos = { x, y };
     nextState = { 
-      ...state, 
+      ...nextState, 
       playerPos: newPos,
       creaturePositions: {
-        ...state.creaturePositions,
-        [state.playerId]: newPos,
+        ...nextState.creaturePositions,
+        [nextState.playerId]: newPos,
       },
     };
     console.log(`[resolveCommand] Player moved to (${x}, ${y}), creaturePositions updated:`, nextState.creaturePositions);

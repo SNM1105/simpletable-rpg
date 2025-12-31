@@ -1,4 +1,4 @@
-import type { Rng } from "@/lib/rules/random/rng";
+import type { Rng } from "@/lib/random/rng";
 import type { GameState, GameLogItem } from "@/lib/game/state";
 import { applyPlayerText, resolveNpcTurn } from "@/lib/rules/engine";
 import { narrate } from "@/lib/aiDm/mockDm";
