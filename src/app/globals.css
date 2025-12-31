@@ -25,6 +25,11 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   margin: 0;
   overflow: hidden;
+  touch-action: pan-y pan-x;
+}
+
+* {
+  touch-action: manipulation;
 }
 
 html,

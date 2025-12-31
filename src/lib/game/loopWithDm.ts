@@ -73,10 +73,10 @@ async function fetchDmLines(
   return data.lines;
 }
 
-function fallbackDmLines(state: GameState, events: EngineEvent[]): string[] {
+function fallbackDmResponse(state: GameState, events: EngineEvent[]): { lines: string[]; mapHint?: string } {
   // Use the mock DM, but only take DM text lines.
   const narr = mockNarrate(state, events);
-  return narr.lines.filter((l) => l.kind === "dm").map((l) => l.text);
+  return { lines: narr.lines.filter((l) => l.kind === "dm").map((l) => l.text) };
 }
 
 // Phase-based turn resolution for sequential dice animations
@@ -201,7 +201,7 @@ export async function stepPlayerInputWithDm(
     const lines = await fetchDmLines(next, result.events, onStreamChunk);
     playerDmResponse = lines.join("\n\n");
   } catch {
-    const lines = fallbackDmLines(next, result.events);
+    const lines = fallbackDmResponse(next, result.events).lines;
     playerDmResponse = lines.join("\n\n");
   }
 
@@ -229,7 +229,7 @@ export async function stepPlayerInputWithDm(
         const lines = await fetchDmLines(next, npc.events, onStreamChunk);
         npcDmResponse = lines.join("\n\n");
       } catch {
-        const lines = fallbackDmLines(next, npc.events);
+        const lines = fallbackDmResponse(next, npc.events).lines;
         npcDmResponse = lines.join("\n\n");
       }
 
