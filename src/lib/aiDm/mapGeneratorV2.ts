@@ -199,7 +199,10 @@ export async function generateCampaignMap(
 ): Promise<GridMap> {
   try {
     const apiKey = process.env.GROQ_API_KEY;
+    console.log('[MapGen] All GROQ env vars:', Object.keys(process.env).filter(k => k.includes('GROQ')));
     console.log(`[MapGen] GROQ_API_KEY present: ${!!apiKey}`);
+    console.log(`[MapGen] GROQ_API_KEY length: ${apiKey?.length || 0}`);
+    console.log(`[MapGen] GROQ_API_KEY preview: ${apiKey?.substring(0, 15) || 'NONE'}...`);
     
     if (!apiKey) {
       console.error("[MapGen] GROQ_API_KEY not configured, using fallback");
