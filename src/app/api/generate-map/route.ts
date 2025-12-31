@@ -2,9 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateCampaignMap } from '@/lib/aiDm/mapGeneratorV2';
 
 export async function POST(request: NextRequest) {
+  let width = 25;
+  let height = 20;
+  
   try {
     const body = await request.json();
-    const { campaignPrompt, width, height } = body;
+    const { campaignPrompt, width: reqWidth, height: reqHeight } = body;
+    
+    width = reqWidth || 25;
+    height = reqHeight || 20;
 
     if (!campaignPrompt || typeof campaignPrompt !== 'string') {
       return NextResponse.json(
@@ -17,8 +23,8 @@ export async function POST(request: NextRequest) {
 
     const gridMap = await generateCampaignMap(
       campaignPrompt,
-      width || 25,
-      height || 20
+      width,
+      height
     );
 
     return NextResponse.json({ gridMap });
@@ -27,7 +33,7 @@ export async function POST(request: NextRequest) {
     
     // Return fallback map instead of error
     const { createFallbackDungeon } = await import('@/lib/aiDm/mapGeneratorV2');
-    const fallbackMap = createFallbackDungeon(width || 25, height || 20);
+    const fallbackMap = createFallbackDungeon(width, height);
     
     return NextResponse.json({ gridMap: fallbackMap });
   }
