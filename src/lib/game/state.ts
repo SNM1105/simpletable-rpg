@@ -1,6 +1,7 @@
 import type { Creature, CreatureId } from "@/lib/rules/dnd5e/types";
 import { calculateSpellSlots } from "@/lib/rules/dnd5e/spellSlots";
-import { generateCampaignMap } from "@/lib/aiDm/mapGeneratorV2";
+// Removed: generateCampaignMap now called via API route for server-side execution
+// import { generateCampaignMap } from "@/lib/aiDm/mapGeneratorV2";
 import type { GridMap } from "@/lib/aiDm/mapSpec";
 import { createEncounter } from "@/lib/rules/dnd5e/creatureLibrary";
 import { createMulberry32 } from "@/lib/rules/random/rng";
@@ -36,8 +37,46 @@ export async function expandMapInDirection(
   const extensionWidth = direction === "north" || direction === "south" ? currentMap.width : 15;
   const extensionHeight = direction === "north" || direction === "south" ? 10 : currentMap.height;
   
-  // Generate new section
-  const newSectionGrid = await generateCampaignMap(`${prompt} - new area discovered`, extensionWidth, extensionHeight);
+  // Generate new section via API
+  let newSectionGrid;
+  try {
+    const response = await fetch('/api/generate-map', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        campaignPrompt: `${prompt} - new area discovered`,
+        width: extensionWidth,
+        height: extensionHeight,
+      }),
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      newSectionGrid = data.gridMap;
+    } else {
+      throw new Error('API failed');
+    }
+  } catch (error) {
+    console.error('[State] Failed to generate map extension:', error);
+    // Minimal fallback
+    newSectionGrid = {
+      width: extensionWidth,
+      height: extensionHeight,
+      cells: Array(extensionWidth * extensionHeight).fill({ terrain: 'floor', discovered: false, visible: false }),
+      rooms: [{
+        id: 'extension',
+        name: 'New Area',
+        description: 'An unexplored area',
+        bounds: { x: 2, y: 2, width: extensionWidth - 4, height: extensionHeight - 4 },
+        purpose: 'exploration',
+        exits: []
+      }],
+      corridors: [],
+      doors: [],
+      specialFeatures: []
+    };
+  }
+  
   const newSection = convertGridMapToGameMap(newSectionGrid);
   
   // Calculate new dimensions
@@ -345,10 +384,48 @@ export async function createInitialGameState(
   const now = Date.now();
   const bootMessage = campaignPrompt || "Rules engine online. The game engine controls reality; the DM controls meaning.";
   
-  // Generate campaign-specific map using new system
-  const gridMap = campaignPrompt 
-    ? await generateCampaignMap(campaignPrompt)
-    : await generateCampaignMap("A classic dungeon adventure");
+  // Generate campaign-specific map via API route (server-side only)
+  let gridMap;
+  try {
+    const response = await fetch('/api/generate-map', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        campaignPrompt: campaignPrompt || "A classic dungeon adventure",
+        width: 25,
+        height: 20,
+      }),
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      gridMap = data.gridMap;
+    } else {
+      console.error('[State] Map generation API failed, using fallback');
+      // Fallback will be handled by API route itself
+      const data = await response.json();
+      gridMap = data.gridMap; // API returns fallback on error
+    }
+  } catch (error) {
+    console.error('[State] Failed to fetch generated map:', error);
+    // Create minimal fallback map client-side
+    gridMap = {
+      width: 25,
+      height: 20,
+      cells: Array(25 * 20).fill({ terrain: 'floor', discovered: false, visible: false }),
+      rooms: [{
+        id: 'start',
+        name: 'Starting Room',
+        description: 'A simple room',
+        bounds: { x: 10, y: 8, width: 5, height: 4 },
+        purpose: 'safe',
+        exits: []
+      }],
+      corridors: [],
+      doors: [],
+      specialFeatures: []
+    };
+  }
   
   // Convert to GameMap format
   const map = convertGridMapToGameMap(gridMap);
