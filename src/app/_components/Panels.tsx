@@ -328,17 +328,23 @@ export function MapPanel({ state, onMapClick, onCommandSubmit }: {
     
     // If door, add door actions
     if (tile === "door") {
+      const doorState = state.doors.find(d => d.x === x && d.y === y);
+      const isLocked = doorState?.locked;
+      
       if (isAdjacent) {
-        actions.push({
-          label: '🚪 Open door',
-          command: 'open door',
-          actionType: 'interact',
-        });
-        actions.push({
-          label: '🔓 Pick the lock',
-          command: 'pick the lock on the door',
-          actionType: 'interact',
-        });
+        if (isLocked) {
+          actions.push({
+            label: '🔓 Pick Lock',
+            command: 'pick lock',
+            actionType: 'interact',
+          });
+        } else {
+          actions.push({
+            label: '🚪 Open door',
+            command: 'open door',
+            actionType: 'interact',
+          });
+        }
       }
       actions.push({
         label: '🔍 Examine door',
@@ -500,11 +506,18 @@ export function MapPanel({ state, onMapClick, onCommandSubmit }: {
           extra: "relative after:absolute after:inset-0 after:bg-[radial-gradient(circle_at_50%_50%,rgba(0,0,0,0.05)_1px,transparent_1px)] after:bg-[length:4px_4px]",
         };
       case "door":
+        // Check if door is locked
+        const doorState = state.doors.find(d => d.x === x && d.y === y);
+        const isLocked = doorState?.locked;
         return { 
-          bg: "bg-gradient-to-b from-amber-700 via-amber-800 to-amber-900", 
-          icon: "🚪", 
-          border: "border-2 border-amber-950",
-          extra: "shadow-md relative after:absolute after:inset-y-0 after:left-1/2 after:w-px after:bg-amber-950",
+          bg: isLocked 
+            ? "bg-gradient-to-b from-red-900 via-red-950 to-black" 
+            : "bg-gradient-to-b from-amber-700 via-amber-800 to-amber-900", 
+          icon: isLocked ? "🔒" : "🚪", 
+          border: isLocked ? "border-2 border-red-950 ring-2 ring-red-500/50" : "border-2 border-amber-950",
+          extra: isLocked 
+            ? "shadow-lg shadow-red-600/40 relative after:absolute after:inset-y-0 after:left-1/2 after:w-px after:bg-red-950" 
+            : "shadow-md relative after:absolute after:inset-y-0 after:left-1/2 after:w-px after:bg-amber-950",
         };
       case "chest":
         return { 
@@ -763,8 +776,27 @@ export function MapPanel({ state, onMapClick, onCommandSubmit }: {
 
 export function SheetPanel({ state }: { state: GameState }) {
   const pc = state.creatures[state.playerId];
+  const isDead = pc.deathSaves && pc.deathSaves.failures >= 3;
+  const isUnconscious = pc.isUnconscious && !isDead;
+  
   return (
     <div className="h-full space-y-3 overflow-y-auto text-sm">
+      {/* Death/Unconscious Status Banner */}
+      {isDead && (
+        <div className="rounded-md border-2 border-red-500 bg-red-950/80 px-3 py-2 text-center">
+          <div className="text-2xl mb-1">💀</div>
+          <div className="text-sm font-bold text-red-500">DEAD</div>
+          <div className="text-xs text-red-400 mt-1">Cannot take actions</div>
+        </div>
+      )}
+      {isUnconscious && !isDead && (
+        <div className="rounded-md border-2 border-orange-500 bg-orange-950/80 px-3 py-2 text-center">
+          <div className="text-2xl mb-1">😵</div>
+          <div className="text-sm font-bold text-orange-500">UNCONSCIOUS</div>
+          <div className="text-xs text-orange-400 mt-1">Making death saves</div>
+        </div>
+      )}
+      
       <div className="flex items-baseline justify-between">
         <div className="font-semibold">{pc.name}</div>
         <div className="text-foreground/70">

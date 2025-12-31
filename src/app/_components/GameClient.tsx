@@ -10,6 +10,7 @@ import { CommandBar } from "@/app/_components/CommandBar";
 import { SetupScreen, type SetupData } from "@/app/_components/SetupScreen";
 import { TitleScreen } from "@/app/_components/TitleScreen";
 import { LobbyScreen } from "@/app/_components/LobbyScreen";
+import { GameOverScreen } from "@/app/_components/GameOverScreen";
 import { MultiDiceAnimation } from "@/app/_components/DiceAnimation";
 
 export function GameClient() {
@@ -26,6 +27,8 @@ export function GameClient() {
   const [lobbyId, setLobbyId] = React.useState<string | null>(null);
   const [playerName, setPlayerName] = React.useState<string>("");
   const [gameStarted, setGameStarted] = React.useState(false);
+  const [isDead, setIsDead] = React.useState(false);
+  const [hasOtherPlayers, setHasOtherPlayers] = React.useState(false);
   const [streamingText, setStreamingText] = React.useState<string>("");
   const [isLoading, setIsLoading] = React.useState(false);
   const [userInput, setUserInput] = React.useState<string>("");
@@ -33,6 +36,14 @@ export function GameClient() {
 
   React.useEffect(() => {
     stateRef.current = state;
+    
+    // Check if player has died
+    if (state) {
+      const pc = state.creatures[state.playerId];
+      if (pc?.deathSaves && pc.deathSaves.failures >= 3) {
+        setIsDead(true);
+      }
+    }
   }, [state]);
 
   React.useEffect(() => {
@@ -94,6 +105,12 @@ export function GameClient() {
             let previousLogLength = updatedState?.log.length || 0;
             
             for (const phase of result.phases) {
+              // Check for PlayerDied event
+              const playerDiedEvent = phase.events?.find((e: any) => e.type === "PlayerDied");
+              if (playerDiedEvent) {
+                setIsDead(true);
+              }
+              
               const newDiceLogs = phase.state.log
                 .slice(previousLogLength)
                 .filter(log => log.kind === "dice");
@@ -346,9 +363,9 @@ export function GameClient() {
 
       <div className="mx-auto w-full max-w-7xl shrink-0 px-2 sm:px-6 pb-2 sm:pb-4">
         <CommandBar
-          disabled={busy || !ready}
+          disabled={busy || !ready || isDead}
           onSubmit={async (text) => {
-            if (busy || !ready || !stateRef.current) return;
+            if (busy || !ready || !stateRef.current || isDead) return;
             setBusy(true);
             setUserInput(text);
             setIsLoading(true);
@@ -369,6 +386,12 @@ export function GameClient() {
                 const newDiceLogs = phase.state.log
                   .slice(previousLogLength)
                   .filter(log => log.kind === "dice");
+                
+                // Check for PlayerDied event
+                const playerDiedEvent = phase.events?.find((e: any) => e.type === "PlayerDied");
+                if (playerDiedEvent) {
+                  setIsDead(true);
+                }
                 
                 previousLogLength = phase.state.log.length;
                 
@@ -438,6 +461,18 @@ export function GameClient() {
         <MultiDiceAnimation 
           rolls={diceRolls} 
           onComplete={() => setDiceRolls(null)} 
+        />
+      )}
+      
+      {/* Game Over screen (single-player only) */}
+      {isDead && !hasOtherPlayers && (
+        <GameOverScreen 
+          onNewGame={() => {
+            setIsDead(false);
+            setGameStarted(false);
+            setState(null);
+            stateRef.current = null;
+          }}
         />
       )}
     </div>

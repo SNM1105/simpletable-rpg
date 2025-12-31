@@ -28,6 +28,7 @@ export type PlayerCommand =
   | { kind: "rest" }
   | { kind: "breakWall"; dir: "n" | "s" | "e" | "w" }
   | { kind: "openDoor" }
+  | { kind: "pickLock" }
   | { kind: "openChest" }
   | { kind: "searchSecret" }
   | { kind: "unknown"; raw: string };
@@ -270,6 +271,11 @@ export function parsePlayerCommand(input: string): PlayerCommand {
   // Open door: "open door", "unlock door"
   if (/(open|unlock).*(door)/i.test(raw)) {
     return { kind: "openDoor" };
+  }
+  
+  // Pick lock: "pick lock", "pick the lock", "lockpick"
+  if (/(pick|picklock).*(lock|door)/i.test(raw) || /lockpick/i.test(raw)) {
+    return { kind: "pickLock" };
   }
 
   // Open chest: "open chest", "unlock chest", "search chest"
@@ -1026,6 +1032,13 @@ export function resolveCommand(state: GameState, rng: Rng, command: PlayerComman
     for (const { pos, dir } of adjacent) {
       const tile = tileAt(state.map, pos.x, pos.y);
       if (tile === "door") {
+        // Check if door is locked
+        const doorState = state.doors.find(d => d.x === pos.x && d.y === pos.y);
+        if (doorState?.locked) {
+          events.push({ type: "Bumped", reason: "The door is locked!" });
+          return { nextState, events };
+        }
+        
         // Check what's beyond the door
         const beyondX = dir === "east" ? pos.x + 1 : dir === "west" ? pos.x - 1 : pos.x;
         const beyondY = dir === "south" ? pos.y + 1 : dir === "north" ? pos.y - 1 : pos.y;
@@ -1189,6 +1202,77 @@ export function resolveCommand(state: GameState, rng: Rng, command: PlayerComman
     return { nextState, events };
   }
 
+  if (command.kind === "pickLock") {
+    const pc = state.creatures[state.playerId];
+    const pcPos = state.creaturePositions[state.playerId];
+    
+    // Find adjacent locked door
+    const adjacentPositions = [
+      { x: pcPos.x - 1, y: pcPos.y },
+      { x: pcPos.x + 1, y: pcPos.y },
+      { x: pcPos.x, y: pcPos.y - 1 },
+      { x: pcPos.x, y: pcPos.y + 1 },
+    ];
+
+    let lockedDoor: { x: number; y: number; doorState: any } | null = null;
+    for (const pos of adjacentPositions) {
+      const tile = state.map.tiles[pos.y * state.map.width + pos.x];
+      if (tile === "door") {
+        const doorState = state.doors.find(d => d.x === pos.x && d.y === pos.y);
+        if (doorState?.locked) {
+          lockedDoor = { x: pos.x, y: pos.y, doorState };
+          break;
+        }
+      }
+    }
+
+    if (!lockedDoor) {
+      events.push({ type: "Bumped", reason: "No locked door nearby to pick!" });
+      return { nextState, events };
+    }
+
+    // Roll sleight of hand check (DC 15 for standard locks)
+    const diceResult = rollDice(rng, "Lockpick (d20)", 20, 1);
+    const d20 = diceResult.total;
+    const dexMod = Math.floor(((pc.abilityScores?.dex || 10) - 10) / 2);
+    const profBonus = 2; // Assume proficient in sleight of hand
+    const total = d20 + dexMod + profBonus;
+    const DC = 15;
+
+    events.push({ type: "Dice", entry: diceResult });
+
+    if (total >= DC) {
+      // Success - unlock the door
+      const updatedDoors = state.doors.map(d =>
+        d.x === lockedDoor!.x && d.y === lockedDoor!.y
+          ? { ...d, locked: false }
+          : d
+      );
+
+      nextState = {
+        ...nextState,
+        doors: updatedDoors,
+      };
+
+      events.push({
+        type: "Narrate",
+        text: `[Sleight of Hand: ${d20}+${dexMod + profBonus}=${total} vs DC ${DC}] With careful precision, you pick the lock. The door clicks open!`,
+      });
+    } else {
+      events.push({
+        type: "Narrate",
+        text: `[Sleight of Hand: ${d20}+${dexMod + profBonus}=${total} vs DC ${DC}] Your lockpick slips. The lock remains secure.`,
+      });
+    }
+
+    // Advance turn if in combat
+    if (state.combat.active) {
+      nextState = advanceTurn(nextState);
+    }
+
+    return { nextState, events };
+  }
+
   if (command.kind === "rest") {
     if (state.combat.active) {
       events.push({ type: "Bumped", reason: "You can't rest during combat!" });
@@ -1246,6 +1330,106 @@ export function resolveCommand(state: GameState, rng: Rng, command: PlayerComman
 export function resolveNpcTurn(state: GameState, rng: Rng): EngineResult {
   if (!state.combat.active) return { nextState: state, events: [] };
   const turnId = currentTurnCreatureId(state);
+  
+  // Check if it's the player's turn and they're unconscious - auto-roll death save
+  if (turnId === state.playerId) {
+    const pc = state.creatures[state.playerId];
+    if (pc.isUnconscious && pc.deathSaves) {
+      let nextState = state;
+      const events: EngineEvent[] = [];
+      
+      const deathSaveRoll = rollDie(rng, 20);
+      const success = deathSaveRoll >= 10;
+      
+      const newSuccesses = success ? pc.deathSaves.successes + 1 : pc.deathSaves.successes;
+      const newFailures = !success ? pc.deathSaves.failures + 1 : pc.deathSaves.failures;
+      
+      events.push({
+        type: "Dice",
+        entry: {
+          label: `${pc.name} Death Save`,
+          rolls: [{ sides: 20, result: deathSaveRoll }],
+          total: deathSaveRoll,
+        },
+      });
+      
+      events.push({
+        type: "DeathSave",
+        creatureName: pc.name,
+        success,
+        successes: newSuccesses,
+        failures: newFailures,
+      });
+      
+      // Check for death (3 failures)
+      if (newFailures >= 3) {
+        nextState = {
+          ...nextState,
+          creatures: {
+            ...nextState.creatures,
+            [pc.id]: {
+              ...pc,
+              deathSaves: {
+                successes: newSuccesses,
+                failures: newFailures,
+                isStabilized: false,
+              },
+            },
+          },
+        };
+        events.push({
+          type: "PlayerDied",
+          creatureName: pc.name,
+          creatureId: pc.id,
+        });
+        return { nextState, events };
+      }
+      
+      // Check for stabilization (3 successes)
+      if (newSuccesses >= 3) {
+        nextState = {
+          ...nextState,
+          creatures: {
+            ...nextState.creatures,
+            [pc.id]: {
+              ...pc,
+              deathSaves: {
+                successes: newSuccesses,
+                failures: newFailures,
+                isStabilized: true,
+              },
+            },
+          },
+        };
+        events.push({
+          type: "Stabilized",
+          creatureName: pc.name,
+        });
+        nextState = advanceTurn(nextState);
+        return { nextState, events };
+      }
+      
+      // Continue death saves
+      nextState = {
+        ...nextState,
+        creatures: {
+          ...nextState.creatures,
+          [pc.id]: {
+            ...pc,
+            deathSaves: {
+              successes: newSuccesses,
+              failures: newFailures,
+              isStabilized: false,
+            },
+          },
+        },
+      };
+      nextState = advanceTurn(nextState);
+      return { nextState, events };
+    }
+    return { nextState: state, events: [] };
+  }
+  
   if (!turnId || turnId === state.playerId) return { nextState: state, events: [] };
 
   const npc = state.creatures[turnId];
@@ -1350,11 +1534,28 @@ export function resolveNpcTurn(state: GameState, rng: Rng): EngineResult {
   events.push({ type: "AttackResolved", targetName: pc.name, hit: true, damage: dmgEntry.total });
 
   if (nextHp <= 0) {
-    // Demo: end combat if the PC drops.
-    const ended = endCombat(nextState);
-    nextState = ended.nextState;
-    events.push(...ended.events);
-    return { nextState, events };
+    // Player goes unconscious and starts death saves
+    nextState = {
+      ...nextState,
+      creatures: {
+        ...nextState.creatures,
+        [pc.id]: {
+          ...nextState.creatures[pc.id],
+          hp: 0,
+          isUnconscious: true,
+          deathSaves: {
+            successes: 0,
+            failures: 0,
+            isStabilized: false,
+          },
+        },
+      },
+    };
+    events.push({
+      type: "CreatureUnconscious",
+      creatureName: pc.name,
+      creatureId: pc.id,
+    });
   }
 
   nextState = advanceTurn(nextState);

@@ -9,6 +9,7 @@ export type EngineEvent =
   | { type: "CreatureDied"; creatureName: string; creatureId: string }
   | { type: "CreatureUnconscious"; creatureName: string; creatureId: string }
   | { type: "DeathSave"; creatureName: string; success: boolean; successes: number; failures: number }
+  | { type: "PlayerDied"; creatureName: string; creatureId: string }
   | { type: "Stabilized"; creatureName: string }
   | { type: "SavingThrow"; creatureName: string; ability: string; total: number; success: boolean; dc: number }
   | { type: "CombatStarted" }

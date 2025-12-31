@@ -37,6 +37,8 @@ export function applyDeterministicEventLogs(state: GameState, events: EngineEven
       next = appendLog(next, { kind: "dice", text: formatDice(ev.entry) });
     } else if (ev.type === "CreatureDied") {
       next = appendLog(next, { kind: "system", text: `${ev.creatureName} has been slain!` });
+    } else if (ev.type === "PlayerDied") {
+      next = appendLog(next, { kind: "system", text: `${ev.creatureName} has died!` });
     } else if (ev.type === "CreatureUnconscious") {
       next = appendLog(next, { kind: "system", text: `${ev.creatureName} falls unconscious!` });
     } else if (ev.type === "DeathSave") {

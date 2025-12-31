@@ -231,6 +231,13 @@ export type GameLogItem = {
   items?: string[]; // For loot entries
 };
 
+export type DoorState = {
+  x: number;
+  y: number;
+  locked: boolean;
+  keyRequired?: string; // ID of key item needed to unlock
+};
+
 export type GameState = {
   seed: number;
   time: number;
@@ -239,6 +246,7 @@ export type GameState = {
   map: GameMap;
   playerPos: Position;
   creaturePositions: Record<CreatureId, Position>; // Track all creature positions
+  doors: DoorState[]; // Track locked/unlocked state of doors
   combat: CombatState;
   log: GameLogItem[];
   focusedEnemyId?: CreatureId; // Track which enemy is focused for attacks
@@ -454,6 +462,23 @@ export async function createInitialGameState(
     creaturesList[enemy.id] = enemy;
   }
   
+  // Find all doors in the map and set some as locked
+  const doorsList: DoorState[] = [];
+  for (let y = 0; y < map.height; y++) {
+    for (let x = 0; x < map.width; x++) {
+      if (map.tiles[y * map.width + x] === "door") {
+        // 30% chance a door is locked
+        const isLocked = rng.nextFloat01() < 0.3;
+        doorsList.push({
+          x,
+          y,
+          locked: isLocked,
+          keyRequired: isLocked ? `key-${x}-${y}` : undefined,
+        });
+      }
+    }
+  }
+  
   return {
     seed,
     time: now,
@@ -465,6 +490,7 @@ export async function createInitialGameState(
       [player.id]: startPos,
       ...enemyPositions,
     },
+    doors: doorsList,
     combat: { active: false, round: 0, turnIndex: 0, order: [] },
     log: [
       {
