@@ -153,6 +153,8 @@ export function MapPanel({ state, onMapClick, onCommandSubmit }: {
   } | null>(null);
   const [attackText, setAttackText] = React.useState("");
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const contextMenuRef = React.useRef<HTMLDivElement>(null);
+  const attackInputRef = React.useRef<HTMLDivElement>(null);
   
   // Find current room
   const currentRoom = map.rooms.find(room => 
@@ -376,13 +378,20 @@ export function MapPanel({ state, onMapClick, onCommandSubmit }: {
   
   // Close context menu when clicking elsewhere
   React.useEffect(() => {
-    const handleClickOutside = () => {
-      setContextMenu(null);
-      setAttackInput(null);
+    const handleClickOutside = (e: MouseEvent) => {
+      // Check if click is outside context menu
+      if (contextMenu && contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenu(null);
+      }
+      // Check if click is outside attack input
+      if (attackInput && attackInputRef.current && !attackInputRef.current.contains(e.target as Node)) {
+        setAttackInput(null);
+        setAttackText("");
+      }
     };
     if (contextMenu || attackInput) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [contextMenu, attackInput]);
   
@@ -680,6 +689,7 @@ export function MapPanel({ state, onMapClick, onCommandSubmit }: {
       {/* Context Menu */}
       {contextMenu && (
         <div
+          ref={contextMenuRef}
           className="fixed z-50 w-44 rounded-lg border border-foreground/20 bg-background shadow-2xl"
           style={{
             left: `${contextMenu.x}px`,
@@ -704,6 +714,7 @@ export function MapPanel({ state, onMapClick, onCommandSubmit }: {
       {/* Attack Input Bubble */}
       {attackInput && (
         <div
+          ref={attackInputRef}
           className="fixed z-50 w-80 rounded-lg border border-blue-500/50 bg-background shadow-2xl"
           style={{
             left: `${attackInput.x}px`,
