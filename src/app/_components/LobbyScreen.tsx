@@ -99,8 +99,8 @@ export function LobbyScreen({ onJoinLobby }: { onJoinLobby: (lobbyId: string, pl
 
   if (view === 'create') {
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-linear-to-br from-stone-900 via-stone-800 to-stone-900 text-foreground">
-        <div className="w-full max-w-md space-y-6 rounded-lg border border-foreground/20 bg-background/50 p-8 backdrop-blur">
+      <div className="flex h-screen flex-col items-center justify-center bg-linear-to-br from-stone-900 via-stone-800 to-stone-900 text-foreground p-4">
+        <div className="w-full max-w-md space-y-4 sm:space-y-6 rounded-lg border border-foreground/20 bg-background/50 p-4 sm:p-8 backdrop-blur">
           <h2 className="text-2xl font-bold">Create Lobby</h2>
           
           {error && (
@@ -180,8 +180,8 @@ export function LobbyScreen({ onJoinLobby }: { onJoinLobby: (lobbyId: string, pl
 
   if (view === 'join' && selectedLobby) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-linear-to-br from-stone-900 via-stone-800 to-stone-900 text-foreground">
-        <div className="w-full max-w-md space-y-6 rounded-lg border border-foreground/20 bg-background/50 p-8 backdrop-blur">
+      <div className="flex h-screen flex-col items-center justify-center bg-linear-to-br from-stone-900 via-stone-800 to-stone-900 text-foreground p-4">
+        <div className="w-full max-w-md space-y-4 sm:space-y-6 rounded-lg border border-foreground/20 bg-background/50 p-4 sm:p-8 backdrop-blur">
           <h2 className="text-2xl font-bold">Join {selectedLobby.name}</h2>
           
           {error && (
@@ -244,13 +244,13 @@ export function LobbyScreen({ onJoinLobby }: { onJoinLobby: (lobbyId: string, pl
   }
 
   return (
-    <div className="flex h-screen flex-col items-center justify-center bg-linear-to-br from-stone-900 via-stone-800 to-stone-900 text-foreground p-6">
-      <div className="w-full max-w-4xl space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Game Lobbies</h1>
+    <div className="flex h-screen flex-col items-center justify-center bg-linear-to-br from-stone-900 via-stone-800 to-stone-900 text-foreground p-3 sm:p-6">
+      <div className="w-full max-w-4xl space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <h1 className="text-2xl sm:text-3xl font-bold">Game Lobbies</h1>
           <button
             onClick={() => setView('create')}
-            className="rounded-lg bg-blue-600 px-6 py-2 font-medium text-white hover:bg-blue-700"
+            className="rounded-lg bg-blue-600 px-4 sm:px-6 py-2 font-medium text-white hover:bg-blue-700 whitespace-nowrap"
           >
             Create Lobby
           </button>

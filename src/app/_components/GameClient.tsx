@@ -185,25 +185,25 @@ export function GameClient() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
-      <header className="shrink-0 border-b border-foreground/10 px-6 py-4">
-        <div className="mx-auto flex w-full max-w-6xl items-baseline justify-between gap-4">
-          <h1 className="text-base font-semibold tracking-tight">SimpleTable RPG</h1>
+      <header className="shrink-0 border-b border-foreground/10 px-3 sm:px-6 py-3 sm:py-4">
+        <div className="mx-auto flex w-full max-w-6xl items-baseline justify-between gap-2 sm:gap-4">
+          <h1 className="text-sm sm:text-base font-semibold tracking-tight">SimpleTable RPG</h1>
           <div className="text-xs text-foreground/70" suppressHydrationWarning>
             Seed: {ready ? seed : "—"}
           </div>
         </div>
       </header>
 
-      <main className="mx-auto flex h-0 w-full max-w-7xl flex-1 gap-4 overflow-hidden px-6 py-4">
+      <main className="mx-auto flex h-0 w-full max-w-7xl flex-1 flex-col lg:flex-row gap-2 sm:gap-4 overflow-hidden px-2 sm:px-6 py-2 sm:py-4">
         {/* Left: Narrative */}
-        <div className="flex w-80 min-w-80 flex-col">
+        <div className="flex w-full lg:w-80 lg:min-w-80 flex-col min-h-0">
           <PanelShell title="Narrative">
             <ChatPanel state={state} streamingText={streamingText} isLoading={isLoading} userInput={userInput} />
           </PanelShell>
         </div>
 
         {/* Center: Map (largest) */}
-        <div className="flex flex-1 flex-col">
+        <div className="flex flex-1 flex-col min-h-0">
           <PanelShell title="Dungeon Map">
             <MapPanel 
               state={state} 
@@ -310,7 +310,7 @@ export function GameClient() {
         </div>
 
         {/* Right: Character + Combat */}
-        <div className="flex w-80 min-w-80 flex-col gap-4">
+        <div className="hidden lg:flex w-80 min-w-80 flex-col gap-4">
           <div className="flex h-0 flex-1 flex-col overflow-hidden">
             <PanelShell title="Character Sheet">
               <SheetPanel state={state} />
@@ -324,7 +324,7 @@ export function GameClient() {
         </div>
       </main>
 
-      <div className="mx-auto w-full max-w-7xl shrink-0 px-6 pb-4">
+      <div className="mx-auto w-full max-w-7xl shrink-0 px-2 sm:px-6 pb-2 sm:pb-4">
         <CommandBar
           disabled={busy || !ready}
           onSubmit={async (text) => {

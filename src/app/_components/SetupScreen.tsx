@@ -90,11 +90,11 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
   };
 
   return (
-    <div className="flex h-screen items-center justify-center bg-background p-6">
-      <div className="flex h-full max-h-[90vh] w-full max-w-4xl flex-col gap-4">
-        <div className="shrink-0 text-center">
-          <h1 className="text-3xl font-bold tracking-tight">Campaign Setup</h1>
-          <p className="mt-2 text-foreground/70">
+    <div className="flex h-screen items-center justify-center bg-background p-3 sm:p-6">
+      <div className="flex h-full max-h-[90vh] w-full max-w-4xl flex-col gap-3 sm:gap-4">
+        <div className="shrink-0 text-center px-2">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Campaign Setup</h1>
+          <p className="mt-2 text-sm sm:text-base text-foreground/70">
             Describe your adventure and create your character
           </p>
         </div>
@@ -210,9 +210,9 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
 
               <div>
                 <label className="mb-2 block text-sm font-semibold">Ability Scores</label>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                   {Object.entries(character.abilityScores).map(([ability, value]) => (
-                    <div key={ability} className="rounded-md border border-foreground/10 bg-background p-3">
+                    <div key={ability} className="rounded-md border border-foreground/10 bg-background p-2 sm:p-3">
                       <label className="mb-1 block text-xs uppercase text-foreground/70">{ability}</label>
                       <input
                         type="number"
