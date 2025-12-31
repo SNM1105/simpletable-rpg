@@ -1,4 +1,4 @@
-import { groqChatStream } from "./groqClient";
+import { groqChat } from "./groqClient";
 import type { MapSpec, MapType, RoomSpec, TerrainType } from "./mapSpec";
 import { buildMapFromSpec, createFallbackDungeon } from "./mapBuilder";
 import type { GridMap } from "./mapSpec";
@@ -146,28 +146,16 @@ export async function generateMapSpec(campaignPrompt: string): Promise<MapSpec> 
       throw new Error("GROQ_API_KEY not configured");
     }
 
-    const stream = await groqChatStream(apiKey, {
-      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
-      messages: [
+    const fullContent = await groqChat(
+      apiKey,
+      process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+      [
         { role: "system", content: getSystemPrompt() },
         { role: "user", content: getUserPrompt(campaignPrompt, mapType) },
       ],
-      temperature: 0.7,
-      max_tokens: 2000,
-      stream: true,
-    });
-    
-    // Collect streamed response
-    const reader = stream.getReader();
-    let fullContent = "";
-    
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value.message?.content) {
-        fullContent += value.message.content;
-      }
-    }
+      0.7,
+      2000
+    );
     
     console.log("[MapGen] Raw AI response:", fullContent);
     

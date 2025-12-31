@@ -92,3 +92,34 @@ export async function groqChatStream(
     },
   });
 }
+
+export async function groqChat(
+  apiKey: string,
+  model: string,
+  messages: GroqMessage[],
+  temperature?: number,
+  maxTokens?: number
+): Promise<string> {
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: temperature || 0.7,
+      max_tokens: maxTokens || 2000,
+      stream: false,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Groq API error: ${response.status} - ${error}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || "";
+}
